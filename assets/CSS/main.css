@@ -327,7 +327,7 @@ body {
     transform: translateY(-7px) rotate(-45deg);
 }
 
-/* ===== MOBILE NAV – true liquid glass ===== */
+/* ===== MOBILE NAV ===== */
 .nav-mobile {
     display: flex;
     position: absolute;
@@ -344,15 +344,15 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 24px;
     background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.105), rgba(255, 255, 255, 0.035) 45%, rgba(255, 255, 255, 0.07)),
-        rgba(16, 17, 20, 0.30);
-    backdrop-filter: blur(30px) saturate(180%) contrast(1.05);
-    -webkit-backdrop-filter: blur(30px) saturate(180%) contrast(1.05);
+        linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02) 45%, rgba(255, 255, 255, 0.05)),
+        rgba(16, 17, 20, 0.78);
+    backdrop-filter: blur(34px) saturate(180%) contrast(1.05);
+    -webkit-backdrop-filter: blur(34px) saturate(180%) contrast(1.05);
     box-shadow:
-        0 24px 70px rgba(0, 0, 0, 0.42),
-        0 8px 24px rgba(0, 0, 0, 0.24),
-        inset 0 1px 0 rgba(255, 255, 255, 0.18),
-        inset 0 -1px 0 rgba(255, 255, 255, 0.045);
+        0 24px 70px rgba(0, 0, 0, 0.5),
+        0 8px 24px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.04);
     isolation: isolate;
     transform: translateY(-8px) scale(0.985);
     transform-origin: top right;
@@ -371,8 +371,8 @@ body {
     z-index: -2;
     border-radius: inherit;
     background:
-        radial-gradient(circle at 8% 0%, rgba(255, 255, 255, 0.20), transparent 32%),
-        radial-gradient(circle at 100% 100%, rgba(255, 215, 150, 0.08), transparent 42%);
+        radial-gradient(circle at 8% 0%, rgba(255, 255, 255, 0.14), transparent 32%),
+        radial-gradient(circle at 100% 100%, rgba(255, 215, 150, 0.06), transparent 42%);
     pointer-events: none;
 }
 
@@ -385,7 +385,6 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.055);
     pointer-events: none;
 }
-
 .nav-mobile.open {
     max-height: 600px;
     padding: 1.2rem 1rem 1.8rem;
