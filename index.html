@@ -18,8 +18,13 @@
 </head>
 <body>
 
-<div class="loading-screen" id="loadingScreen" aria-label="Loading">
-<div class="loading-text">Loading<span class="loading-dots"></span></div>
+<div class="loading-screen">
+<div class="loading-content">
+<p class="line">the backend is having a moment.</p>
+<p class="line">newsletter, contact, and notifications are down.</p>
+<p class="line">nothing is lost. we're rebuilding it properly.</p>
+<p class="line small">back soon<span class="loading-dots"></span></p>
+</div>
 </div>
 
 <div class="site-bg" role="presentation"></div>
@@ -162,19 +167,5 @@ url: '/assets/posts/posts/ah-cx-ty-hte-py-pr'
 <script src="assets/JS/main.js"></script>
 <link rel="stylesheet" href="assets/CSS/notifications.css">
 <script src="assets/JS/notifications.js" defer></script>
-
-<script>
-window.addEventListener('load', function () {
-const loadingScreen = document.getElementById('loadingScreen');
-if (!loadingScreen) return;
-setTimeout(function () {
-loadingScreen.classList.add('hidden');
-setTimeout(function () {
-loadingScreen.remove();
-}, 700);
-}, 900);
-});
-</script>
-
 </body>
 </html>
