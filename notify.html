@@ -10,9 +10,14 @@
     content="width=device-width, initial-scale=1.0"
 >
 
-<title>Send Notification — DoYouEvenGif-alt</title>
+<title>Send Notification &mdash; DoYouEvenGif-alt</title>
 
 <style>
+
+/*
+ * Everything on this page is scoped by element or class. No global resets
+ * beyond the box model and the document margins.
+ */
 
 * {
     box-sizing: border-box;
@@ -33,6 +38,10 @@ body {
 
     padding: 24px;
 
+    /*
+     * Two soft radial highlights over a near-black base. Fixed colours, no
+     * images, so the page renders identically everywhere.
+     */
     background:
         radial-gradient(
             circle at top left,
@@ -57,9 +66,9 @@ body {
 }
 
 
-/* ─────────────────────────────────────
-   CONTAINER
-   ───────────────────────────────────── */
+/* ------------------------------------------------------------------
+   Card
+   ------------------------------------------------------------------ */
 
 .composer {
 
@@ -81,6 +90,11 @@ body {
         1px solid
         rgba(255,255,255,0.12);
 
+    /*
+     * Backdrop blur is prefixed for Safari, which still needs
+     * -webkit-backdrop-filter. Browsers that support neither simply show the
+     * gradient background, which is a valid fallback.
+     */
     backdrop-filter:
         blur(30px)
         saturate(150%);
@@ -96,9 +110,9 @@ body {
 }
 
 
-/* ─────────────────────────────────────
-   HEADER
-   ───────────────────────────────────── */
+/* ------------------------------------------------------------------
+   Header
+   ------------------------------------------------------------------ */
 
 .header {
 
@@ -119,6 +133,7 @@ body {
 
     object-fit: cover;
 
+    /* Prevents the avatar from being squeezed when the title is long. */
     flex-shrink: 0;
 }
 
@@ -138,9 +153,9 @@ body {
 }
 
 
-/* ─────────────────────────────────────
-   LABEL
-   ───────────────────────────────────── */
+/* ------------------------------------------------------------------
+   Field label
+   ------------------------------------------------------------------ */
 
 label {
 
@@ -155,9 +170,9 @@ label {
 }
 
 
-/* ─────────────────────────────────────
-   TEXTAREA
-   ───────────────────────────────────── */
+/* ------------------------------------------------------------------
+   Message input
+   ------------------------------------------------------------------ */
 
 textarea {
 
@@ -165,6 +180,7 @@ textarea {
 
     min-height: 230px;
 
+    /* The user can drag it taller, but never narrower than the card. */
     resize: vertical;
 
     padding: 17px;
@@ -218,9 +234,9 @@ textarea:focus {
 }
 
 
-/* ─────────────────────────────────────
-   PREVIEW
-   ───────────────────────────────────── */
+/* ------------------------------------------------------------------
+   Preview
+   ------------------------------------------------------------------ */
 
 .preview-title {
 
@@ -250,8 +266,10 @@ textarea:focus {
 
     line-height: 1.65;
 
+    /* Preserves the line breaks the user typed. */
     white-space: pre-wrap;
 
+    /* Long unbroken strings wrap instead of overflowing the card. */
     overflow-wrap: anywhere;
 }
 
@@ -270,9 +288,9 @@ textarea:focus {
 }
 
 
-/* ─────────────────────────────────────
-   BOTTOM
-   ───────────────────────────────────── */
+/* ------------------------------------------------------------------
+   Footer row
+   ------------------------------------------------------------------ */
 
 .bottom {
 
@@ -295,9 +313,9 @@ textarea:focus {
 }
 
 
-/* ─────────────────────────────────────
-   SEND BUTTON
-   ───────────────────────────────────── */
+/* ------------------------------------------------------------------
+   Send button
+   ------------------------------------------------------------------ */
 
 button {
 
@@ -358,6 +376,10 @@ button:active {
         translateY(1px);
 }
 
+/*
+ * Applied by the script while a request is in flight. The disabled attribute
+ * is set as well, so the button cannot be activated by keyboard either.
+ */
 button:disabled {
 
     opacity: 0.5;
@@ -368,12 +390,13 @@ button:disabled {
 }
 
 
-/* ─────────────────────────────────────
-   STATUS
-   ───────────────────────────────────── */
+/* ------------------------------------------------------------------
+   Status line
+   ------------------------------------------------------------------ */
 
 .status {
 
+    /* Reserved height stops the card from jumping when a message appears. */
     min-height: 22px;
 
     margin-top: 15px;
@@ -392,9 +415,9 @@ button:disabled {
 }
 
 
-/* ─────────────────────────────────────
-   MOBILE
-   ───────────────────────────────────── */
+/* ------------------------------------------------------------------
+   Narrow viewports
+   ------------------------------------------------------------------ */
 
 @media (max-width: 600px) {
 
@@ -516,235 +539,203 @@ You can paste URLs directly."
 
 <script>
 
-const messageInput =
-    document.getElementById("message");
+/* ------------------------------------------------------------------
+   Element references
+   ------------------------------------------------------------------ */
 
-const preview =
-    document.getElementById("preview");
-
-const counter =
-    document.getElementById("counter");
-
-const sendButton =
-    document.getElementById("sendButton");
-
-const status =
-    document.getElementById("status");
+const messageInput = document.getElementById("message");
+const preview      = document.getElementById("preview");
+const counter      = document.getElementById("counter");
+const sendButton   = document.getElementById("sendButton");
+const status       = document.getElementById("status");
 
 
-/* ─────────────────────────────────────
-   ESCAPE HTML
-   ───────────────────────────────────── */
+/* ------------------------------------------------------------------
+   Escaping
+   ------------------------------------------------------------------ */
 
+/*
+ * Converts plain text into text that is safe to insert as HTML.
+ *
+ * Setting textContent and reading innerHTML lets the browser perform the
+ * escaping. The result escapes &, <, >, and (in attribute contexts) the
+ * quote characters, which is what the preview needs.
+ */
 function escapeHTML(text) {
 
-    const div =
-        document.createElement("div");
+    const div = document.createElement("div");
 
-    div.textContent =
-        text;
+    div.textContent = text;
 
     return div.innerHTML;
 }
 
 
-/* ─────────────────────────────────────
-   FORMAT PREVIEW
-   ───────────────────────────────────── */
+/* ------------------------------------------------------------------
+   Preview rendering
+   ------------------------------------------------------------------ */
 
+/*
+ * Builds the preview markup from the raw textarea value.
+ *
+ * The text is escaped first, then URLs inside the escaped text are replaced
+ * with anchor elements. Escaping before linking means the link detection only
+ * ever sees text that is already safe, and the href value cannot contain a
+ * quote character that would break out of the attribute.
+ */
 function formatPreview(text) {
 
     if (!text) {
 
-        return `
-            Your notification preview
-            will appear here.
-        `;
+        return "Your notification preview will appear here.";
     }
 
 
-    let safe =
-        escapeHTML(text);
+    let safe = escapeHTML(text);
 
 
     /*
-     * Detect URLs.
+     * Matches http:// and https:// runs up to the first whitespace or one of
+     * the characters that cannot appear unencoded inside a URL in prose.
      */
+    safe = safe.replace(
+        /(https?:\/\/[^\s<>"']+)/gi,
+        function (url) {
 
-    safe =
-        safe.replace(
-            /(https?:\/\/[^\s<>"']+)/gi,
-            function(url) {
+            let clean    = url;
+            let trailing = "";
 
-                let clean =
-                    url;
+            /*
+             * Punctuation at the end of a sentence is usually not part of the
+             * address. Peel it off and reattach it after the closing anchor,
+             * so "see https://example.com." produces a link to
+             * https://example.com and a separate period.
+             */
+            while (/[.,!?;:)\]}]+$/.test(clean)) {
 
-                let trailing =
-                    "";
-
-                while (
-                    /[.,!?;:)\]}]+$/.test(clean)
-                ) {
-
-                    trailing =
-                        clean.slice(-1) +
-                        trailing;
-
-                    clean =
-                        clean.slice(0, -1);
-                }
-
-                return `
-                    <a
-                        href="${clean}"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >${clean}</a>${trailing}
-                `;
+                trailing = clean.slice(-1) + trailing;
+                clean    = clean.slice(0, -1);
             }
-        );
+
+            return '<a href="' + clean + '" '
+                 + 'target="_blank" '
+                 + 'rel="noopener noreferrer">'
+                 + clean
+                 + '</a>'
+                 + trailing;
+        }
+    );
 
 
     return safe;
 }
 
 
-/* ─────────────────────────────────────
-   LIVE PREVIEW
-   ───────────────────────────────────── */
+/* ------------------------------------------------------------------
+   Live preview
+   ------------------------------------------------------------------ */
 
 function updatePreview() {
 
-    const text =
-        messageInput.value;
+    const text = messageInput.value;
 
-    preview.innerHTML =
-        formatPreview(text);
+    preview.innerHTML = formatPreview(text);
 
-    counter.textContent =
-        `${text.length} / 5000`;
+    counter.textContent = text.length + " / 5000";
 }
 
 
-messageInput.addEventListener(
-    "input",
-    updatePreview
-);
+messageInput.addEventListener("input", updatePreview);
 
 
-/* ─────────────────────────────────────
-   SEND
-   ───────────────────────────────────── */
+/* ------------------------------------------------------------------
+   Submit
+   ------------------------------------------------------------------ */
 
-sendButton.addEventListener(
-    "click",
-    async function() {
+sendButton.addEventListener("click", async function () {
 
-        const message =
-            messageInput.value.trim();
+    const message = messageInput.value.trim();
 
 
-        if (!message) {
+    if (!message) {
 
-            status.textContent =
-                "Write a message first.";
+        status.textContent = "Write a message first.";
+        status.className   = "status error";
 
-            status.className =
-                "status error";
+        messageInput.focus();
 
-            messageInput.focus();
+        return;
+    }
 
-            return;
+
+    /* Prevents a second submission while the first is in flight. */
+    sendButton.disabled    = true;
+    sendButton.textContent = "Sending\u2026";
+
+    status.textContent = "";
+
+    try {
+
+        const response = await fetch(
+            "/api/notifications/add",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({ message: message })
+            }
+        );
+
+
+        const data = await response.json();
+
+
+        /*
+         * fetch only rejects on network errors. A 4xx or 5xx response still
+         * resolves, so the status code has to be checked here.
+         */
+        if (!response.ok) {
+
+            throw new Error(
+                data.error || "Failed to send notification."
+            );
         }
 
 
-        sendButton.disabled =
-            true;
+        status.textContent = "\u2713 Notification sent.";
+        status.className   = "status success";
 
-        sendButton.textContent =
-            "Sending…";
+
+        /* Clear the composer so the next message starts from an empty box. */
+        messageInput.value = "";
+
+        updatePreview();
+
+
+    } catch (error) {
+
+        console.error(error);
 
         status.textContent =
-            "";
+            error.message || "Something went wrong.";
 
-        try {
-
-            const response =
-                await fetch(
-                    "/api/notifications/add",
-                    {
-                        method: "POST",
-
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
-
-                        body: JSON.stringify({
-                            message: message
-                        })
-                    }
-                );
+        status.className = "status error";
 
 
-            const data =
-                await response.json();
+    } finally {
 
-
-            if (!response.ok) {
-
-                throw new Error(
-                    data.error ||
-                    "Failed to send notification."
-                );
-            }
-
-
-            /*
-             * Success
-             */
-
-            status.textContent =
-                "✓ Notification sent.";
-
-            status.className =
-                "status success";
-
-
-            /*
-             * Clear composer.
-             */
-
-            messageInput.value = "";
-
-            updatePreview();
-
-
-        } catch (error) {
-
-            console.error(error);
-
-            status.textContent =
-                error.message ||
-                "Something went wrong.";
-
-            status.className =
-                "status error";
-
-        } finally {
-
-            sendButton.disabled =
-                false;
-
-            sendButton.textContent =
-                "Send Notification";
-        }
-
+        /* Runs on both paths, so the button is never left stuck disabled. */
+        sendButton.disabled    = false;
+        sendButton.textContent = "Send Notification";
     }
-);
+
+});
 
 
-/* Initial preview */
+/* Render the initial state of the preview and counter. */
 
 updatePreview();
 
