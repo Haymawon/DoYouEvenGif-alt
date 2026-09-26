@@ -211,7 +211,7 @@
         });
     }
 
-    // ─── Newsletter Form Submission ──────────────────────
+    // ─── Newsletter Form Submission ──
     if (newsletterForm) {
         newsletterForm.addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -228,17 +228,15 @@
             try {
                 const resp = await fetch(`${API_BASE}/api/subscribe`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email })
+                    body: new URLSearchParams({ email })
                 });
                 const data = await resp.json();
                 if (resp.ok && data.success) {
                     msgEl.textContent = 'Subscribed! Check your email.';
                     msgEl.style.color = '#a0d0b0';
                     newsletterEmail.value = '';
-                    // Mark as subscribed so popup won't show again
                     localStorage.setItem('newsletterSubscribed', 'true');
-                    localStorage.removeItem('newsletterClosed'); // optional
+                    localStorage.removeItem('newsletterClosed');
                     setTimeout(() => {
                         hideNewsletter();
                     }, 1800);
@@ -254,7 +252,7 @@
         });
     }
 
-    // ─── Contact Form (on contact page) ──────────────────
+    // ─── Contact Form ──────
     const contactForm = document.getElementById('contactForm');
     if (contactForm) {
         const emailInput = document.getElementById('contactEmail');
@@ -291,8 +289,7 @@
             try {
                 const resp = await fetch(`${API_BASE}/api/contact`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, message })
+                    body: new URLSearchParams({ email, message })
                 });
                 const data = await resp.json();
                 if (resp.ok && data.success) {
