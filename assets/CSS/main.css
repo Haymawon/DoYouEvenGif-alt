@@ -67,11 +67,11 @@ body {
     width: 100vw;
     height: 100vh;
     z-index: 0;
-    background-image: url('../bg/background_11.jpg');
+    background-image: url('../bg/okita-souji_FHD.jpg');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    filter: blur(12px) brightness(0.55);
+    filter: blur(6px) brightness(0.55);
     transform: scale(1.02);
     pointer-events: none;
 }
