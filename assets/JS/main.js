@@ -232,8 +232,14 @@
                 });
                 const data = await resp.json();
                 if (resp.ok && data.success) {
-                    msgEl.textContent = 'Subscribed! Check your email.';
-                    msgEl.style.color = '#a0d0b0';
+                    // Surface email delivery status from backend
+                    if (data.email_sent) {
+                        msgEl.textContent = 'Subscribed! Check your email.';
+                        msgEl.style.color = '#a0d0b0';
+                    } else {
+                        msgEl.textContent = 'Subscribed! (email delivery failed — check server log)';
+                        msgEl.style.color = '#f0c080';
+                    }
                     newsletterEmail.value = '';
                     localStorage.setItem('newsletterSubscribed', 'true');
                     localStorage.removeItem('newsletterClosed');
@@ -293,8 +299,14 @@
                 });
                 const data = await resp.json();
                 if (resp.ok && data.success) {
-                    statusEl.textContent = 'Message sent! (i\'ll get back to you eventually)';
-                    statusEl.style.color = '#a0d0b0';
+                    // Surface email delivery status from backend
+                    if (data.email_sent) {
+                        statusEl.textContent = "Message sent! (i'll get back to you eventually)";
+                        statusEl.style.color = '#a0d0b0';
+                    } else {
+                        statusEl.textContent = 'Saved, but email delivery failed. (check server log)';
+                        statusEl.style.color = '#f0c080';
+                    }
                     emailInput.value = '';
                     messageInput.value = '';
                 } else {
