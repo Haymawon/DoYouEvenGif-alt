@@ -7,21 +7,30 @@ from datetime import datetime
 from email.message import EmailMessage
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 
-# ─── Import notification helpers ──────────────────────
 from notify import (
     get_notifications,
     get_unread_count,
     clear_all,
-    add_notification      # <-- new import
+    add_notification
 )
 
 load_dotenv()
 
 app = Flask(__name__)
 
-CORS(app, origins='https://doyouevengif-alt.netlify.app')
+ALLOWED_ORIGIN = 'https://doyouevengif-alt.netlify.app'
+CORS(app, origins=ALLOWED_ORIGIN)
+
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = ALLOWED_ORIGIN
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
+    return response
+
 
 # ─── Config ──────────────────────────────────────────────
 SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.protonmail.ch')
@@ -32,7 +41,7 @@ CONTACT_RECIPIENT = os.environ.get('CONTACT_RECIPIENT', 'DoYouEvenGif-alt@proton
 NEWSLETTER_RECIPIENT = os.environ.get('NEWSLETTER_RECIPIENT', 'DoYouEvenGif-alt@proton.me')
 SUBSCRIBERS_FILE = 'subscribers.json'
 CONTACTS_FILE = 'contacts.json'
-NOTIFICATIONS_FILE = 'notifications.json'  # used by save_json if needed
+NOTIFICATIONS_FILE = 'notifications.json'
 
 
 def load_json(filepath, default=None):
@@ -147,14 +156,21 @@ def index():
 
 @app.route('/notify')
 def notify_composer():
-    """Serve the notification composer HTML."""
     return send_from_directory('.', 'notify.html')
 
 
-@app.route('/api/subscribe', methods=['POST'])
+@app.route('/api/subscribe', methods=['POST', 'OPTIONS'])
+@cross_origin(origins=ALLOWED_ORIGIN)
 def subscribe():
-    data = request.get_json(silent=True) or {}
-    email = (data.get('email') or '').strip().lower()
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    # Accept both form data and JSON so it works from anywhere
+    email = (request.form.get('email') or '').strip().lower()
+    if not email:
+        data = request.get_json(silent=True) or {}
+        email = (data.get('email') or '').strip().lower()
+
     if not email or '@' not in email:
         return jsonify({'success': False, 'message': 'Invalid email.'}), 400
 
@@ -172,13 +188,19 @@ def subscribe():
     return jsonify({'success': True, 'message': 'Subscribed successfully!'})
 
 
-@app.route('/api/unsubscribe', methods=['GET', 'POST'])
+@app.route('/api/unsubscribe', methods=['GET', 'POST', 'OPTIONS'])
+@cross_origin(origins=ALLOWED_ORIGIN)
 def unsubscribe():
+    if request.method == 'OPTIONS':
+        return '', 204
+
     if request.method == 'GET':
         email = (request.args.get('email') or '').strip().lower()
     else:
-        data = request.get_json(silent=True) or {}
-        email = (data.get('email') or '').strip().lower()
+        email = (request.form.get('email') or '').strip().lower()
+        if not email:
+            data = request.get_json(silent=True) or {}
+            email = (data.get('email') or '').strip().lower()
 
     if not email:
         return jsonify({'success': False, 'message': 'Email required.'}), 400
@@ -208,11 +230,20 @@ def unsubscribe():
     return jsonify({'success': True, 'message': 'Unsubscribed successfully.'})
 
 
-@app.route('/api/contact', methods=['POST'])
+@app.route('/api/contact', methods=['POST', 'OPTIONS'])
+@cross_origin(origins=ALLOWED_ORIGIN)
 def contact():
-    data = request.get_json(silent=True) or {}
-    email = (data.get('email') or '').strip().lower()
-    message = (data.get('message') or '').strip()
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    # Accept both form data and JSON
+    email = (request.form.get('email') or '').strip().lower()
+    message = (request.form.get('message') or '').strip()
+    if not email or not message:
+        data = request.get_json(silent=True) or {}
+        email = email or (data.get('email') or '').strip().lower()
+        message = message or (data.get('message') or '').strip()
+
     if not email or '@' not in email:
         return jsonify({'success': False, 'message': 'Invalid email.'}), 400
     if not message:
@@ -230,36 +261,50 @@ def contact():
 
 # ─── Notification Routes ─────────────────────────────────
 
-@app.route('/api/notifications', methods=['GET'])
+@app.route('/api/notifications', methods=['GET', 'OPTIONS'])
+@cross_origin(origins=ALLOWED_ORIGIN)
 def notifications_api():
+    if request.method == 'OPTIONS':
+        return '', 204
     return jsonify(get_notifications())
 
 
-@app.route('/api/notifications/unread', methods=['GET'])
+@app.route('/api/notifications/unread', methods=['GET', 'OPTIONS'])
+@cross_origin(origins=ALLOWED_ORIGIN)
 def unread_count_api():
+    if request.method == 'OPTIONS':
+        return '', 204
     return jsonify({'count': get_unread_count()})
 
 
-@app.route('/api/notifications/clear', methods=['POST'])
+@app.route('/api/notifications/clear', methods=['POST', 'OPTIONS'])
+@cross_origin(origins=ALLOWED_ORIGIN)
 def clear_api():
+    if request.method == 'OPTIONS':
+        return '', 204
     clear_all()
     return jsonify({'success': True})
 
 
-@app.route('/api/notifications/add', methods=['POST'])
+@app.route('/api/notifications/add', methods=['POST', 'OPTIONS'])
+@cross_origin(origins=ALLOWED_ORIGIN)
 def add_notification_api():
-    """Add a new notification from the composer UI."""
-    data = request.get_json(silent=True) or {}
-    message = (data.get('message') or '').strip()
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    message = (request.form.get('message') or '').strip()
+    if not message:
+        data = request.get_json(silent=True) or {}
+        message = (data.get('message') or '').strip()
+
     if not message:
         return jsonify({'success': False, 'error': 'Message cannot be empty.'}), 400
 
-    # Use the imported add_notification from notify.py
     notifications = add_notification(message)
 
     return jsonify({
         'success': True,
-        'notification': notifications[-1]  # return the newly added one
+        'notification': notifications[-1]
     })
 
 
