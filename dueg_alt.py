@@ -1,312 +1,706 @@
-import os
+"""
+Backend service for the newsletter and contact endpoints.
+
+Responsibilities
+----------------
+1. Newsletter subscription and unsubscription, stored in subscribers.json.
+2. Contact form intake, stored in contacts.json.
+3. Transactional email delivery through an HTTP mail API.
+4. A small notification feed, implemented in notify.py.
+
+Endpoints
+---------
+    GET  /                              health check
+    GET  /notify                        HTML composer for the notification feed
+    POST /api/subscribe                 add an address to the newsletter list
+    GET  /api/unsubscribe?email=...     remove an address (renders a page)
+    POST /api/unsubscribe               remove an address (returns JSON)
+    POST /api/contact                   store and forward a contact message
+    GET  /api/notifications             full notification feed
+    GET  /api/notifications/unread      unread count only
+    POST /api/notifications/clear       delete every notification
+    POST /api/notifications/add         append one notification
+
+Configuration
+-------------
+Every secret, hostname, address, and site-specific path is read from the
+environment. Nothing of that kind is hard-coded in this file. See
+.env.example for the complete list of keys.
+
+Optional values fall back to safe defaults when unset. Required values are
+left as None and cause the dependent feature to log an error and skip,
+rather than raising at import time.
+"""
+
 import json
-import smtplib
-import ssl
+import logging
+import os
 import urllib.parse
 from datetime import datetime
-from email.message import EmailMessage
+
+import requests
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request, send_from_directory
-from flask_cors import CORS, cross_origin
+from flask import (
+    Flask,
+    jsonify,
+    render_template_string,
+    request,
+)
+from flask_cors import CORS
 
 from notify import (
+    add_notification,
+    clear_all,
     get_notifications,
     get_unread_count,
-    clear_all,
-    add_notification
 )
 
-load_dotenv()
+# ---------------------------------------------------------------------------
+# Filesystem paths
+# ---------------------------------------------------------------------------
+
+# Absolute path of the directory containing this file. Deriving paths from
+# __file__ rather than os.getcwd() means the service behaves identically no
+# matter which directory it is launched from (shell, systemd, gunicorn, IDE).
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Load key=value pairs from a .env file that sits next to this script.
+# load_dotenv does not overwrite variables already present in the real
+# environment, so values injected by the host (systemd, Docker, a PaaS panel)
+# always win over the file.
+load_dotenv(os.path.join(BASE_DIR, '.env'))
+
+SUBSCRIBERS_FILE = os.path.join(BASE_DIR, 'subscribers.json')
+CONTACTS_FILE = os.path.join(BASE_DIR, 'contacts.json')
+NOTIFY_TEMPLATE_FILE = os.path.join(BASE_DIR, 'notify.html')
+
+# The notification feed is owned by notify.py, which resolves the same path on
+# its own. It is declared here as well so the storage layout is visible in one
+# place when reading this file.
+NOTIFICATIONS_FILE = os.path.join(BASE_DIR, 'notifications.json')
+
+# ---------------------------------------------------------------------------
+# Flask application and CORS
+# ---------------------------------------------------------------------------
 
 app = Flask(__name__)
+app.logger.setLevel(logging.INFO)
 
-ALLOWED_ORIGIN = 'https://doyouevengif-alt.netlify.app'
-CORS(app, origins=ALLOWED_ORIGIN)
+# Origin allowed to call the API from a browser. Empty by default, which means
+# no cross-origin access is granted. Same-origin requests are unaffected by
+# CORS and continue to work. Set this to the exact scheme and host of the site
+# when the frontend is hosted on a different origin than the API.
+ALLOWED_ORIGIN = os.environ.get('ALLOWED_ORIGIN', '').strip()
 
+if ALLOWED_ORIGIN:
+    CORS(
+        app,
+        origins=[ALLOWED_ORIGIN],
+        methods=['GET', 'POST', 'OPTIONS'],
+        allow_headers=['Content-Type', 'Authorization'],
+        # No cookies or Authorization-based sessions are used, so credentials
+        # are deliberately left off. Turning this on would require an exact
+        # origin and would widen the attack surface for no benefit.
+        supports_credentials=False,
+        # Cache the preflight result for 24 hours to avoid an OPTIONS round
+        # trip on every request.
+        max_age=86400,
+    )
 
-@app.after_request
-def add_cors_headers(response):
-    response.headers['Access-Control-Allow-Origin'] = ALLOWED_ORIGIN
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
-    response.headers['Access-Control-Allow-Methods'] = 'GET,POST,OPTIONS'
-    return response
+# ---------------------------------------------------------------------------
+# Mail service configuration
+# ---------------------------------------------------------------------------
+# All values are read from the environment. If the API key or sender address
+# is missing, the endpoints still work: submissions are stored on disk and
+# email delivery is skipped with an error written to the log. That keeps the
+# site usable while credentials are being rotated or a mail outage is in
+# progress.
 
+# HTTP endpoint of the mail provider's send API. Must be set to a working
+# endpoint for email delivery to succeed.
+MAIL_API_URL = os.environ.get('MAIL_API_URL', '').strip()
 
-# ─── Config ──────────────────────────────────────────────
-SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.protonmail.ch')
-SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
-SMTP_USER = os.environ.get('SMTP_USER')
-SMTP_PASS = os.environ.get('SMTP_PASS')
-CONTACT_RECIPIENT = os.environ.get('CONTACT_RECIPIENT', 'DoYouEvenGif-alt@proton.me')
-NEWSLETTER_RECIPIENT = os.environ.get('NEWSLETTER_RECIPIENT', 'DoYouEvenGif-alt@proton.me')
-SUBSCRIBERS_FILE = 'subscribers.json'
-CONTACTS_FILE = 'contacts.json'
-NOTIFICATIONS_FILE = 'notifications.json'
+MAIL_API_KEY = os.environ.get('MAIL_API_KEY', '').strip()
+
+# Must be an address that has been verified as a sender with the provider.
+# The provider rejects the request otherwise.
+MAIL_SENDER_EMAIL = os.environ.get('MAIL_SENDER_EMAIL', '').strip()
+
+# Display name shown in the recipient's mail client.
+MAIL_SENDER_NAME = os.environ.get('MAIL_SENDER_NAME', '').strip()
+
+# Where contact form submissions are forwarded.
+MAIL_CONTACT_RECIPIENT = os.environ.get('MAIL_CONTACT_RECIPIENT', '').strip()
+
+# Where new-subscriber notices are forwarded.
+MAIL_NEWSLETTER_RECIPIENT = os.environ.get(
+    'MAIL_NEWSLETTER_RECIPIENT',
+    '',
+).strip()
+
+# Public base URL used to build absolute links inside outgoing email. The
+# unsubscribe link has to be absolute because it is opened from a mail client,
+# not from the site. Leave empty only if email delivery is disabled.
+PUBLIC_BASE_URL = os.environ.get('PUBLIC_BASE_URL', '').strip().rstrip('/')
+
+# Brand name used in email subjects, email bodies, and the notification
+# composer page. Generic default so nothing site-specific is committed.
+BRAND_NAME = os.environ.get('BRAND_NAME', '').strip() or 'Newsletter'
+
+# Path served as the avatar image in the notification feed and composer.
+# Relative by design so no hostname is embedded in the code or the data file.
+AVATAR_PATH = os.environ.get('AVATAR_PATH', '').strip() or '/favicon.png'
+
+# ---------------------------------------------------------------------------
+# JSON storage helpers
+# ---------------------------------------------------------------------------
 
 
 def load_json(filepath, default=None):
+    """Read a JSON file and return its contents.
+
+    Returns `default` (an empty list unless stated otherwise) when the file
+    does not exist, cannot be read, or does not contain valid JSON. A
+    truncated or corrupt data file must not take an endpoint down, so every
+    failure mode degrades to "no data" rather than raising.
+    """
     if default is None:
         default = []
-    if os.path.exists(filepath):
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception:
-            return default
-    return default
+
+    if not os.path.exists(filepath):
+        return default
+
+    try:
+        with open(filepath, 'r', encoding='utf-8') as handle:
+            return json.load(handle)
+    except (json.JSONDecodeError, OSError):
+        return default
 
 
 def save_json(filepath, data):
-    with open(filepath, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    """Write `data` to `filepath` as UTF-8 encoded JSON.
+
+    The write is not atomic. Two requests arriving at the same moment can
+    interleave and one of them can lose its change. That is acceptable at the
+    traffic level this service handles. If that assumption ever changes,
+    write to a temporary file in the same directory and move it into place
+    with os.replace(), which is atomic on POSIX filesystems.
+    """
+    with open(filepath, 'w', encoding='utf-8') as handle:
+        json.dump(data, handle, indent=2, ensure_ascii=False)
+
+
+# ---------------------------------------------------------------------------
+# Email delivery
+# ---------------------------------------------------------------------------
 
 
 def send_email(recipient, subject, body_plain, body_html=None):
-    if not SMTP_USER or not SMTP_PASS:
-        print('SMTP credentials not set. Email not sent.')
+    """Send one transactional email through the mail provider's HTTP API.
+
+    Returns True when the provider accepted the message, False for every
+    other outcome. Network errors, timeouts and non-2xx responses are logged
+    and swallowed: a mail failure must not turn an otherwise successful
+    subscription or contact submission into a 500 response.
+
+    `body_plain` is always sent. `body_html` is optional; when omitted the
+    plain text version only is delivered.
+    """
+    if not MAIL_API_URL:
+        app.logger.error('MAIL_API_URL is not set; email was not sent.')
         return False
 
-    msg = EmailMessage()
-    msg['Subject'] = subject
-    msg['From'] = SMTP_USER
-    msg['To'] = recipient
-    msg.set_content(body_plain)
+    if not MAIL_API_KEY:
+        app.logger.error('MAIL_API_KEY is not set; email was not sent.')
+        return False
+
+    if not MAIL_SENDER_EMAIL:
+        app.logger.error('MAIL_SENDER_EMAIL is not set; email was not sent.')
+        return False
+
+    payload = {
+        'sender': {
+            'name': MAIL_SENDER_NAME or BRAND_NAME,
+            'email': MAIL_SENDER_EMAIL,
+        },
+        'to': [{'email': recipient}],
+        'subject': subject,
+        'textContent': body_plain,
+    }
+
     if body_html:
-        msg.add_alternative(body_html, subtype='html')
+        payload['htmlContent'] = body_html
 
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.starttls(context=ssl.create_default_context())
-            server.login(SMTP_USER, SMTP_PASS)
-            server.send_message(msg)
-        return True
-    except Exception as exc:
-        print(f'Email error: {exc}')
+        response = requests.post(
+            MAIL_API_URL,
+            json=payload,
+            headers={
+                'api-key': MAIL_API_KEY,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            # Bounded timeout so a slow provider response cannot hold a worker
+            # open indefinitely.
+            timeout=15,
+        )
+    except requests.RequestException as exc:
+        app.logger.error('Mail API request failed: %s', exc)
         return False
+
+    if not response.ok:
+        app.logger.error(
+            'Mail API rejected the request: %s %s',
+            response.status_code,
+            response.text,
+        )
+        return False
+
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Email templates
+# ---------------------------------------------------------------------------
+
+
+def _unsubscribe_url(email):
+    """Build the absolute unsubscribe link for an outgoing email.
+
+    Returns an empty string when PUBLIC_BASE_URL has not been configured. The
+    templates check for that and omit the unsubscribe anchor rather than
+    emitting a broken relative link.
+    """
+    if not PUBLIC_BASE_URL:
+        return ''
+
+    return '{base}/api/unsubscribe?email={email}'.format(
+        base=PUBLIC_BASE_URL,
+        email=urllib.parse.quote(email),
+    )
 
 
 def build_welcome_html(email):
-    base_url = 'https://haymawonn.pythonanywhere.com'
-    unsubscribe_url = f"{base_url}/api/unsubscribe?email={urllib.parse.quote(email)}"
-    return f"""<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>Welcome</title></head>
-<body style="margin:0;padding:0;background:#17121b;font-family:Georgia,serif;">
-  <table width="100%" style="background:#17121b;padding:28px 12px;">
-    <tr><td align="center">
-      <table width="600" style="max-width:600px;background:#2a2030;border-radius:30px;border:2px solid #6d536f;overflow:hidden;">
-        <tr><td align="center" style="padding:34px 28px 26px; background:#35263b; border-bottom:1px solid #725676;">
-          <div style="font-size:46px;">🍐</div>
-          <h1 style="color:#fff5f7; margin:0 0 7px;">DoYouEvenGif-alt</h1>
-          <p style="color:#e9b9d3; letter-spacing:0.14em; margin:0;">♡ — Alternative — ♡</p>
-        </td></tr>
-        <tr><td align="center" style="padding:30px 34px 28px;">
-          <div style="display:inline-block;background:#443047;border:1px solid #80617e;border-radius:999px;padding:8px 15px;color:#f7d7e6;">✦ YOU'RE IN ✦</div>
-          <p style="color:#fff1f5;font-size:19px;line-height:1.7;">you clicked the button.</p>
-          <p style="color:#fff1f5;font-size:19px;line-height:1.7;">it's too late now. ♡</p>
-          <p style="color:#fff1f5;font-size:18px;line-height:1.7;">you're officially subscribed to <strong>DoYouEvenGif-alt</strong>.</p>
-          <p style="color:#f2bdd5;font-size:30px;line-height:1.3;">welcome 🍐</p>
-        </td></tr>
-        <tr><td align="center" style="padding:22px 24px 28px; border-top:1px solid #443448; background:#251d2a;">
-          <p style="color:#8f7b89;font-size:11px;letter-spacing:0.04em;margin:0;">DoYouEvenGif-alt · a weird little corner of the internet</p>
-          <p style="margin:13px 0 0 0;">
-            <a href="{unsubscribe_url}" style="display:inline-block;color:#f4c5d9;text-decoration:none;border:1px solid #75566d;background:#332536;border-radius:999px;padding:8px 14px;">🍐 unsubscribe anytime 🍐</a>
-          </p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>"""
+    """Return the HTML body of the subscription confirmation email."""
+    unsubscribe = _unsubscribe_url(email)
+
+    if unsubscribe:
+        unsubscribe_block = (
+            '<p style="margin:13px 0 0 0;">'
+            '<a href="' + unsubscribe + '" '
+            'style="display:inline-block;color:#f4c5d9;text-decoration:none;'
+            'border:1px solid #75566d;background:#332536;border-radius:999px;'
+            'padding:8px 14px;">unsubscribe anytime</a>'
+            '</p>'
+        )
+    else:
+        unsubscribe_block = ''
+
+    return (
+        '<!DOCTYPE html>'
+        '<html>'
+        '<head><meta charset="UTF-8"><title>Welcome</title></head>'
+        '<body style="margin:0;padding:0;background:#17121b;'
+        'font-family:Georgia,serif;">'
+        '<table width="100%" style="background:#17121b;padding:28px 12px;">'
+        '<tr><td align="center">'
+        '<table width="600" style="max-width:600px;background:#2a2030;'
+        'border-radius:30px;border:2px solid #6d536f;overflow:hidden;">'
+        '<tr><td align="center" style="padding:34px 28px 26px;'
+        ' background:#35263b; border-bottom:1px solid #725676;">'
+        '<div style="font-size:46px;">&#127824;</div>'
+        '<h1 style="color:#fff5f7; margin:0 0 7px;">' + BRAND_NAME + '</h1>'
+        '<p style="color:#e9b9d3; letter-spacing:0.14em; margin:0;">'
+        '&#9825; &mdash; Alternative &mdash; &#9825;</p>'
+        '</td></tr>'
+        '<tr><td align="center" style="padding:30px 34px 28px;">'
+        '<div style="display:inline-block;background:#443047;'
+        'border:1px solid #80617e;border-radius:999px;padding:8px 15px;'
+        'color:#f7d7e6;">&#10022; YOU\'RE IN &#10022;</div>'
+        '<p style="color:#fff1f5;font-size:19px;line-height:1.7;">'
+        'you clicked the button.</p>'
+        '<p style="color:#fff1f5;font-size:19px;line-height:1.7;">'
+        'it\'s too late now. &#9825;</p>'
+        '<p style="color:#fff1f5;font-size:18px;line-height:1.7;">'
+        'you\'re officially subscribed to <strong>' + BRAND_NAME
+        + '</strong>.</p>'
+        '<p style="color:#f2bdd5;font-size:30px;line-height:1.3;">'
+        'welcome &#127824;</p>'
+        '</td></tr>'
+        '<tr><td align="center" style="padding:22px 24px 28px;'
+        ' border-top:1px solid #443448; background:#251d2a;">'
+        '<p style="color:#8f7b89;font-size:11px;letter-spacing:0.04em;'
+        'margin:0;">' + BRAND_NAME
+        + ' &middot; a weird little corner of the internet</p>'
+        + unsubscribe_block +
+        '</td></tr>'
+        '</table>'
+        '</td></tr>'
+        '</table>'
+        '</body>'
+        '</html>'
+    )
 
 
 def build_unsubscribe_html(email):
-    return f"""<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>Unsubscribed</title></head>
-<body style="margin:0;padding:0;background:#17121b;font-family:Georgia,serif;">
-  <table width="100%" style="background:#17121b;padding:28px 12px;">
-    <tr><td align="center">
-      <table width="600" style="max-width:600px;background:#2a2030;border-radius:30px;border:2px solid #6d536f;overflow:hidden;">
-        <tr><td align="center" style="padding:34px 28px 26px; background:#35263b; border-bottom:1px solid #725676;">
-          <div style="font-size:48px;">🍐</div>
-          <h1 style="color:#fff5f7; margin:0 0 7px;">DoYouEvenGif-alt</h1>
-          <p style="color:#e9b9d3; letter-spacing:0.12em; margin:0;">— you're out —</p>
-        </td></tr>
-        <tr><td align="center" style="padding:31px 34px 34px;">
-          <p style="color:#fff1f5;font-size:19px;line-height:1.7;">you've been unsubscribed from the DoYouEvenGif-alt newsletter.</p>
-          <p style="color:#f2bdd5;font-size:25px;line-height:1.3;">✌️ ♡</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>"""
+    """Return the HTML body of the unsubscribe confirmation email.
+
+    `email` is accepted so both template builders share one signature. The
+    current template does not reference it.
+    """
+    return (
+        '<!DOCTYPE html>'
+        '<html>'
+        '<head><meta charset="UTF-8"><title>Unsubscribed</title></head>'
+        '<body style="margin:0;padding:0;background:#17121b;'
+        'font-family:Georgia,serif;">'
+        '<table width="100%" style="background:#17121b;padding:28px 12px;">'
+        '<tr><td align="center">'
+        '<table width="600" style="max-width:600px;background:#2a2030;'
+        'border-radius:30px;border:2px solid #6d536f;overflow:hidden;">'
+        '<tr><td align="center" style="padding:34px 28px 26px;'
+        ' background:#35263b; border-bottom:1px solid #725676;">'
+        '<div style="font-size:48px;">&#127824;</div>'
+        '<h1 style="color:#fff5f7; margin:0 0 7px;">' + BRAND_NAME + '</h1>'
+        '<p style="color:#e9b9d3; letter-spacing:0.12em; margin:0;">'
+        '&mdash; you\'re out &mdash;</p>'
+        '</td></tr>'
+        '<tr><td align="center" style="padding:31px 34px 34px;">'
+        '<p style="color:#fff1f5;font-size:19px;line-height:1.7;">'
+        'you\'ve been unsubscribed from the ' + BRAND_NAME
+        + ' newsletter.</p>'
+        '<p style="color:#f2bdd5;font-size:25px;line-height:1.3;">'
+        '&#9996;&#65039; &#9825;</p>'
+        '</td></tr>'
+        '</table>'
+        '</td></tr>'
+        '</table>'
+        '</body>'
+        '</html>'
+    )
 
 
-# ─── Routes ─────────────────────────────────────────────
-
-@app.route('/')
-def index():
-    return jsonify({
-        'status': 'online',
-        'message': 'DoYouEvenGif-alt API is running. Use /api/subscribe, /api/contact, /api/unsubscribe'
-    })
+# ---------------------------------------------------------------------------
+# Request parsing helpers
+# ---------------------------------------------------------------------------
 
 
-@app.route('/notify')
-def notify_composer():
-    return send_from_directory('.', 'notify.html')
+def _extract_email_and_message():
+    """Return (email, message) from the current request.
 
+    Both form-encoded and JSON bodies are accepted, because the browser form
+    posts form data while the JavaScript clients post JSON. Email is
+    lowercased and stripped so that 'User@Example.com ' and 'user@example.com'
+    are treated as the same subscriber.
 
-@app.route('/api/subscribe', methods=['POST', 'OPTIONS'])
-@cross_origin(origins=ALLOWED_ORIGIN)
-def subscribe():
-    if request.method == 'OPTIONS':
-        return '', 204
-
-    # Accept both form data and JSON so it works from anywhere
-    email = (request.form.get('email') or '').strip().lower()
-    if not email:
-        data = request.get_json(silent=True) or {}
-        email = (data.get('email') or '').strip().lower()
-
-    if not email or '@' not in email:
-        return jsonify({'success': False, 'message': 'Invalid email.'}), 400
-
-    subscribers = load_json(SUBSCRIBERS_FILE)
-    if email in subscribers:
-        return jsonify({'success': False, 'message': 'Already subscribed.'}), 400
-
-    subscribers.append(email)
-    save_json(SUBSCRIBERS_FILE, subscribers)
-
-    if SMTP_USER and SMTP_PASS:
-        send_email(email, 'welcome to DoYouEvenGif-alt 🍐', 'you clicked the button.\n\nit\'s too late now.', build_welcome_html(email))
-        send_email(NEWSLETTER_RECIPIENT, f'🍐 New subscriber: {email}', f'{email} just subscribed.', f'<p>{email} joined the newsletter.</p>')
-
-    return jsonify({'success': True, 'message': 'Subscribed successfully!'})
-
-
-@app.route('/api/unsubscribe', methods=['GET', 'POST', 'OPTIONS'])
-@cross_origin(origins=ALLOWED_ORIGIN)
-def unsubscribe():
-    if request.method == 'OPTIONS':
-        return '', 204
-
-    if request.method == 'GET':
-        email = (request.args.get('email') or '').strip().lower()
-    else:
-        email = (request.form.get('email') or '').strip().lower()
-        if not email:
-            data = request.get_json(silent=True) or {}
-            email = (data.get('email') or '').strip().lower()
-
-    if not email:
-        return jsonify({'success': False, 'message': 'Email required.'}), 400
-
-    subscribers = load_json(SUBSCRIBERS_FILE)
-    if email not in subscribers:
-        return jsonify({'success': False, 'message': 'Email not found in subscribers.'}), 404
-
-    subscribers.remove(email)
-    save_json(SUBSCRIBERS_FILE, subscribers)
-
-    if SMTP_USER and SMTP_PASS:
-        send_email(email, "you're out of DoYouEvenGif-alt", 'you\'ve been unsubscribed.', build_unsubscribe_html(email))
-
-    if request.method == 'GET':
-        return """
-        <html><body style="background:#0b0a0c;color:#f0ebe3;font-family:Georgia,serif;text-align:center;padding:60px 20px;">
-          <div style="max-width:500px;margin:0 auto;background:rgba(255,255,255,0.03);border-radius:24px;padding:40px;border:1px solid rgba(255,215,150,0.1);">
-            <div style="font-size:48px;">🍐</div>
-            <h2 style="color:#f0d5a0;">you're out.</h2>
-            <p style="color:#cbc4bc;font-size:18px;line-height:1.7;">you've been unsubscribed. no hard feelings.</p>
-            <p style="margin-top:30px;"><a href="/" style="color:#f0d5a0;text-decoration:none;">← back to home</a></p>
-          </div>
-        </body></html>
-        """
-
-    return jsonify({'success': True, 'message': 'Unsubscribed successfully.'})
-
-
-@app.route('/api/contact', methods=['POST', 'OPTIONS'])
-@cross_origin(origins=ALLOWED_ORIGIN)
-def contact():
-    if request.method == 'OPTIONS':
-        return '', 204
-
-    # Accept both form data and JSON
+    Either value may come back as an empty string when it was not supplied.
+    """
     email = (request.form.get('email') or '').strip().lower()
     message = (request.form.get('message') or '').strip()
+
+    # Only fall back to the JSON body when the form did not supply the value,
+    # so a mixed request cannot have one field silently overwritten.
     if not email or not message:
         data = request.get_json(silent=True) or {}
         email = email or (data.get('email') or '').strip().lower()
         message = message or (data.get('message') or '').strip()
 
+    return email, message
+
+
+# ---------------------------------------------------------------------------
+# General routes
+# ---------------------------------------------------------------------------
+
+
+@app.route('/')
+def index():
+    """Health check. Confirms the process is up and lists the main routes."""
+    return jsonify({
+        'status': 'online',
+        'message': (
+            'API is running. '
+            'Use /api/subscribe, /api/contact, /api/unsubscribe'
+        ),
+    })
+
+
+@app.route('/notify')
+def notify_composer():
+    """Serve the notification composer page.
+
+    The page is rendered through Flask so that the brand name and avatar path
+    can be injected from the environment instead of being hard-coded in the
+    HTML file.
+    """
+    with open(NOTIFY_TEMPLATE_FILE, 'r', encoding='utf-8') as handle:
+        template = handle.read()
+
+    return render_template_string(
+        template,
+        brand_name=BRAND_NAME,
+        avatar_path=AVATAR_PATH,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Newsletter routes
+# ---------------------------------------------------------------------------
+
+
+@app.route('/api/subscribe', methods=['POST'])
+def subscribe():
+    """Add an address to the newsletter list.
+
+    Accepts 'email' in either a form body or a JSON body. On success the
+    address is appended to subscribers.json, a welcome email is sent to the
+    subscriber, and a heads-up email is sent to MAIL_NEWSLETTER_RECIPIENT.
+
+    Returns 400 when the address is missing or malformed, and 400 when it is
+    already on the list.
+    """
+    email = (request.form.get('email') or '').strip().lower()
+
+    if not email:
+        data = request.get_json(silent=True) or {}
+        email = (data.get('email') or '').strip().lower()
+
+    # '@' is the only structural check performed. Full address validation
+    # belongs to the mail provider, and an over-strict pattern here would
+    # reject legitimate addresses.
     if not email or '@' not in email:
-        return jsonify({'success': False, 'message': 'Invalid email.'}), 400
+        return jsonify({
+            'success': False,
+            'message': 'Invalid email.',
+        }), 400
+
+    subscribers = load_json(SUBSCRIBERS_FILE)
+
+    if email in subscribers:
+        return jsonify({
+            'success': False,
+            'message': 'Already subscribed.',
+        }), 400
+
+    subscribers.append(email)
+    save_json(SUBSCRIBERS_FILE, subscribers)
+
+    # Both sends are attempted independently. A failure on either one leaves
+    # the subscription in place; the address is on disk regardless.
+    welcome_ok = False
+    notify_ok = False
+
+    if MAIL_API_KEY:
+        welcome_ok = send_email(
+            email,
+            'welcome to {brand} \U0001F350'.format(brand=BRAND_NAME),
+            "you clicked the button.\n\nit's too late now.",
+            build_welcome_html(email),
+        )
+
+        if MAIL_NEWSLETTER_RECIPIENT:
+            notify_ok = send_email(
+                MAIL_NEWSLETTER_RECIPIENT,
+                '\U0001F350 New subscriber: {email}'.format(email=email),
+                '{email} just subscribed.'.format(email=email),
+                '<p>{email} joined the newsletter.</p>'.format(email=email),
+            )
+
+    return jsonify({
+        'success': True,
+        'message': 'Subscribed successfully!',
+        'email_sent': welcome_ok and notify_ok,
+    })
+
+
+@app.route('/api/unsubscribe', methods=['GET', 'POST'])
+def unsubscribe():
+    """Remove an address from the newsletter list.
+
+    GET  /api/unsubscribe?email=...  renders a confirmation page, which is
+                                     the form used by the link inside emails.
+    POST /api/unsubscribe            returns JSON.
+
+    Returns 400 when no address is supplied and 404 when the address is not
+    on the list. A confirmation email is sent on success, but a delivery
+    failure does not change the response, because the address has already
+    been removed.
+    """
+    if request.method == 'GET':
+        email = (request.args.get('email') or '').strip().lower()
+    else:
+        email = (request.form.get('email') or '').strip().lower()
+
+        if not email:
+            data = request.get_json(silent=True) or {}
+            email = (data.get('email') or '').strip().lower()
+
+    if not email:
+        return jsonify({
+            'success': False,
+            'message': 'Email required.',
+        }), 400
+
+    subscribers = load_json(SUBSCRIBERS_FILE)
+
+    if email not in subscribers:
+        return jsonify({
+            'success': False,
+            'message': 'Email not found in subscribers.',
+        }), 404
+
+    subscribers.remove(email)
+    save_json(SUBSCRIBERS_FILE, subscribers)
+
+    if MAIL_API_KEY:
+        send_email(
+            email,
+            "you're out of {brand}".format(brand=BRAND_NAME),
+            "you've been unsubscribed.",
+            build_unsubscribe_html(email),
+        )
+
+    if request.method == 'GET':
+        return (
+            '<html><body style="background:#0b0a0c;color:#f0ebe3;'
+            'font-family:Georgia,serif;text-align:center;padding:60px 20px;">'
+            '<div style="max-width:500px;margin:0 auto;'
+            'background:rgba(255,255,255,0.03);border-radius:24px;'
+            'padding:40px;border:1px solid rgba(255,215,150,0.1);">'
+            '<div style="font-size:48px;">&#127824;</div>'
+            '<h2 style="color:#f0d5a0;">you\'re out.</h2>'
+            '<p style="color:#cbc4bc;font-size:18px;line-height:1.7;">'
+            'you\'ve been unsubscribed. no hard feelings.</p>'
+            '<p style="margin-top:30px;"><a href="/" '
+            'style="color:#f0d5a0;text-decoration:none;">'
+            '&larr; back to home</a></p>'
+            '</div>'
+            '</body></html>'
+        )
+
+    return jsonify({
+        'success': True,
+        'message': 'Unsubscribed successfully.',
+    })
+
+
+# ---------------------------------------------------------------------------
+# Contact route
+# ---------------------------------------------------------------------------
+
+
+@app.route('/api/contact', methods=['POST'])
+def contact():
+    """Store a contact form submission and forward it by email.
+
+    The submission is written to contacts.json before any email is attempted,
+    so a mail outage never loses a message. The response reports whether the
+    email actually went out through the 'email_sent' field.
+
+    Returns 400 for a malformed address or an empty message.
+    """
+    email, message = _extract_email_and_message()
+
+    if not email or '@' not in email:
+        return jsonify({
+            'success': False,
+            'message': 'Invalid email.',
+        }), 400
+
     if not message:
-        return jsonify({'success': False, 'message': 'Message cannot be empty.'}), 400
+        return jsonify({
+            'success': False,
+            'message': 'Message cannot be empty.',
+        }), 400
 
     contacts = load_json(CONTACTS_FILE)
-    contacts.append({'email': email, 'message': message, 'timestamp': str(datetime.now())})
+    contacts.append({
+        'email': email,
+        'message': message,
+        'timestamp': str(datetime.now()),
+    })
     save_json(CONTACTS_FILE, contacts)
 
-    if SMTP_USER and SMTP_PASS:
-        send_email(CONTACT_RECIPIENT, f'✉️ Contact from {email}', f'From: {email}\n\n{message}', f'<p>From: {email}</p><p>{message}</p>')
+    sent = False
 
-    return jsonify({'success': True, 'message': 'Message sent!'})
+    if MAIL_API_KEY and MAIL_CONTACT_RECIPIENT:
+        sent = send_email(
+            MAIL_CONTACT_RECIPIENT,
+            '\u2709\ufe0f Contact from {email}'.format(email=email),
+            'From: {email}\n\n{message}'.format(email=email, message=message),
+            '<p>From: {email}</p><p>{message}</p>'.format(
+                email=email,
+                message=message,
+            ),
+        )
+
+    return jsonify({
+        'success': True,
+        'message': 'Message sent!' if sent else 'Saved, but email failed.',
+        'email_sent': sent,
+    })
 
 
-# ─── Notification Routes ─────────────────────────────────
+# ---------------------------------------------------------------------------
+# Notification routes
+# ---------------------------------------------------------------------------
+# These wrap the functions in notify.py, which owns the file format and the
+# default notification shape. The routes here only handle HTTP concerns.
 
-@app.route('/api/notifications', methods=['GET', 'OPTIONS'])
-@cross_origin(origins=ALLOWED_ORIGIN)
+
+@app.route('/api/notifications', methods=['GET'])
 def notifications_api():
-    if request.method == 'OPTIONS':
-        return '', 204
+    """Return the full notification feed, newest last."""
     return jsonify(get_notifications())
 
 
-@app.route('/api/notifications/unread', methods=['GET', 'OPTIONS'])
-@cross_origin(origins=ALLOWED_ORIGIN)
+@app.route('/api/notifications/unread', methods=['GET'])
 def unread_count_api():
-    if request.method == 'OPTIONS':
-        return '', 204
+    """Return the number of notifications that have not been read."""
     return jsonify({'count': get_unread_count()})
 
 
-@app.route('/api/notifications/clear', methods=['POST', 'OPTIONS'])
-@cross_origin(origins=ALLOWED_ORIGIN)
+@app.route('/api/notifications/clear', methods=['POST'])
 def clear_api():
-    if request.method == 'OPTIONS':
-        return '', 204
+    """Delete every notification."""
     clear_all()
     return jsonify({'success': True})
 
 
-@app.route('/api/notifications/add', methods=['POST', 'OPTIONS'])
-@cross_origin(origins=ALLOWED_ORIGIN)
+@app.route('/api/notifications/add', methods=['POST'])
 def add_notification_api():
-    if request.method == 'OPTIONS':
-        return '', 204
+    """Append one notification.
 
+    Accepts 'message' in either a form body or a JSON body. Returns 400 when
+    the message is empty. On success the newly created notification is
+    returned so the caller can render it without refetching the feed.
+    """
     message = (request.form.get('message') or '').strip()
+
     if not message:
         data = request.get_json(silent=True) or {}
         message = (data.get('message') or '').strip()
 
     if not message:
-        return jsonify({'success': False, 'error': 'Message cannot be empty.'}), 400
+        return jsonify({
+            'success': False,
+            'error': 'Message cannot be empty.',
+        }), 400
 
     notifications = add_notification(message)
 
     return jsonify({
         'success': True,
-        'notification': notifications[-1]
+        'notification': notifications[-1],
     })
 
 
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
 if __name__ == '__main__':
+    # debug=False on purpose. The Flask debugger exposes an interactive Python
+    # console to anyone who can reach the port, so it must stay off outside of
+    # a local, isolated environment.
     app.run(host='0.0.0.0', port=5000, debug=False)
