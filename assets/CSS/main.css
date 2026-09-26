@@ -1027,8 +1027,6 @@ body {
     border: 0;
 }
 
-/* ===== LOADING SCREEN ===== */
-
 .loading-screen {
     position: fixed;
     inset: 0;
@@ -1043,21 +1041,23 @@ body {
 
     font-family: 'EmiratesEssentials-Thin', sans-serif;
     font-weight: 100;
-
-    transition:
-        opacity 0.7s ease,
-        visibility 0.7s ease;
 }
 
-.loading-screen.hidden {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
+.loading-content {
+    width: min(90%, 700px);
+    text-align: center;
 }
 
-.loading-text {
-    font-size: clamp(1.5rem, 4vw, 2.4rem);
-    letter-spacing: 0.08em;
+.loading-content .line {
+    margin: 0.45rem 0;
+    font-size: clamp(1rem, 2vw, 1.35rem);
+    line-height: 1.6;
+    letter-spacing: 0.04em;
+}
+
+.loading-content .line.small {
+    margin-top: 1rem;
+    font-size: clamp(0.9rem, 1.8vw, 1.15rem);
 }
 
 .loading-dots {
