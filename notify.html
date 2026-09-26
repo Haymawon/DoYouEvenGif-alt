@@ -10,7 +10,7 @@
     content="width=device-width, initial-scale=1.0"
 >
 
-<title>Send Notification &mdash; DoYouEvenGif-alt</title>
+<title>Send Notification &mdash; {{ brand_name }}</title>
 
 <style>
 
@@ -455,7 +455,7 @@ button:disabled {
 
         <img
             class="avatar"
-            src="/faviconn.png"
+            src="{{ avatar_path }}"
             alt=""
         >
 
@@ -466,7 +466,7 @@ button:disabled {
             </div>
 
             <div class="subtitle">
-                DoYouEvenGif-alt
+                {{ brand_name }}
             </div>
 
         </div>
@@ -558,8 +558,8 @@ const status       = document.getElementById("status");
  * Converts plain text into text that is safe to insert as HTML.
  *
  * Setting textContent and reading innerHTML lets the browser perform the
- * escaping. The result escapes &, <, >, and (in attribute contexts) the
- * quote characters, which is what the preview needs.
+ * escaping. The result escapes &, <, >, and the quote characters, which is
+ * what the preview needs.
  */
 function escapeHTML(text) {
 
@@ -579,9 +579,9 @@ function escapeHTML(text) {
  * Builds the preview markup from the raw textarea value.
  *
  * The text is escaped first, then URLs inside the escaped text are replaced
- * with anchor elements. Escaping before linking means the link detection only
- * ever sees text that is already safe, and the href value cannot contain a
- * quote character that would break out of the attribute.
+ * with anchor elements. Escaping before linking means the link detection
+ * only ever sees text that is already safe, and the href value cannot
+ * contain a quote character that would break out of the attribute.
  */
 function formatPreview(text) {
 
@@ -606,10 +606,10 @@ function formatPreview(text) {
             let trailing = "";
 
             /*
-             * Punctuation at the end of a sentence is usually not part of the
-             * address. Peel it off and reattach it after the closing anchor,
-             * so "see https://example.com." produces a link to
-             * https://example.com and a separate period.
+             * Punctuation at the end of a sentence is usually not part of
+             * the address. Peel it off and reattach it after the closing
+             * anchor, so that a trailing period or comma stays outside the
+             * link.
              */
             while (/[.,!?;:)\]}]+$/.test(clean)) {
 
