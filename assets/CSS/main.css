@@ -579,9 +579,9 @@ body {
 .page-content p {
     font-family: 'EmiratesEssentials-Bold', system-ui, sans-serif;
     font-size: 1.1rem;
-    line-height: 1.25;
+    line-height: 1.15;
     color: #cbc4bc;
-    margin-bottom: 0.5rem;
+    margin: 0 0 0.4rem 0;
 }
 .page-content .highlight {
     color: #f0ebe3;
