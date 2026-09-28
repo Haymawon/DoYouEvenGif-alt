@@ -99,6 +99,81 @@ const DOWNLOADS = {
                 meta: "#1"
             }
         ]
+    },
+    "the-Me-you-love-in-the-dark": {
+        title: "The Me You Love in the Dark",
+        description: "Choose a file below to start your download.",
+        files: [
+            {
+                name: "The Me You Love in the Dark",
+                file: "https://getcomics.org/dls/OrOmpkijSI7U7KajBFmhktmj2mg3nSwxNSxplY9Tz+pk5M2jil8NDQ9ori+liyxuSL4dszi6G8SCF/uCTvrY4NOiIr7KaRHuVrZKpntm1p7yEBkVUGk1/PuRorvIkSQQaLKLxjy+/dywufRO572+kPzBubQAiDdUTl6eT780gYP9fuBHag0IVa04qxXvpiDYD/WWAqH9xFHm3F/kj1qvqg==:MyP4L/7Vd2IkYdlshJTETg==",
+                meta: "Vol. 1"
+            }
+        ]
+    },
+    "lady-mechanika": {
+        title: "Lady Mechanika",
+        description: "Choose a file below to start your download.",
+        files: [
+            {
+                name: "Lady Mechanika Vol. 1",
+                file: "https://getcomics.org/dls/Knp5+z0zXS3qq7vkVD46rZc3SANN3S5Jn7HU/rm7tonGIhbfxxVkZyR7P/eIDONPYJBUvF+GWJhcY4cTNePiGj2SHjBaY0XC743BqK7uAM11PYULPVxi4lH+Y/+lgojFSbkmLmEFUOCPNwkIjS0pv4I8L/qWLB+hcz41oUy3nNH6SaSHJHQWAACg9h9/m/ZP:IsZrpcKl2NLXUa5ODSwMHg==",
+                meta: "Vol 1"
+            },
+
+            {
+                name: "Lady Mechanika Vol. 2",
+                file: "https://getcomics.org/dls/RJnTjOoXFawdyNP5elErWnmCBXQAvHuN2sLnJLikMYoL0kABYIlkyuJs6DqAZ37ha24L4CJF1mDP5MczlYYWOofwMYHPdebkFpl65Nl7eSQ=:4CsSQWfFslMGoNmWI3oPLQ==",
+                meta: "Vol. 2"
+            },
+            {
+                name: "Lady Mechanika Vol. 3",
+                file: "",
+                meta: "Vol. 3"
+            },
+            {
+                name: "Lady Mechanika Vol. 4",
+                file: "https://getcomics.org/dls/U0po9YNey6Ps/UeJaxWWIfLbe4gliPk30ZcO8A31tzx0eSBOUPPoRLg2SvBfgfhKLGTV4pxH/osYDK6H1q86xpY1dzNxeH0TjAJ8qYaAwmEGjlHIhM88b070Xmq0szm1gkjAXa7P5HSi0PXvBs5TEiisrO5Y/vj1upQmkSKIAnG8JbsX4SdrbhUamItG5NW4E6x4jUZqFXcyz+gxaq5JUg==:iF2x8+AbLeougWVIykWcig==",
+                meta: "Vol. 4"
+            },
+            {
+                name: "Lady Mechanika Vol. 5",
+                file: "https://getcomics.org/dls/LAA9Pv5v1VFLGmXBel74/f0geOcpxBDhzMoc15++cx4uml8NanwXh77b2POij8822EMbpHJ5do0BoZagQ8/tjwTv4o26rLonueQnwddpsaIKXqGxN8uRJyiIq3PGwUXBmH1G5Pf9PECwNzsTeCzu8RVs73sgaUN5qu65AeJUi75NBWo1RVu1uyiU+TG1krXu/WmuN5YMXLOwpl8UghdNr9kUCOscJmFZ8P3NhkeWZS4=:pPlP8j8UfFdN9jHae3lkDw==",
+                meta: "Vol. 5"
+            },
+            {
+                name: "Lady Mechanika Vol. 6",
+                file: "https://getcomics.org/dls/pF81FRD/Zk0OHhM5s2DOfS4aJe3h/VHtYDFu+AYUYcgltnpw9AUZ1+xMWPJZ6fVDaCU09KFAoOccD256s8VZzq0ub/WaOMrbVNIZJQVI2T6JtKS1fapOPNZiA2kqP466AnIpys2QMN2KWV0Hg577X9MfqAZeZrCEA/subEvp7HEsLKhpdQvm/gDTPwjiBFdpat3SX5k4qj2jDiuo0YtC1w==:SMAbEIrzETe8nQkeRQ///w== v",
+                meta: "Vol. 6"
+            },
+            {
+                name: "Lady Mechanika Vol. 7",
+                file: "",
+                meta: "Vol. 7"
+            },
+            {
+                name: "Lady Mechanika Vol. 8",
+                file: "https://getcomics.org/dls/xOdzc0P3L8jPXWPLgmkRh2wVXnj1Kq8rvvwxPsv1E9x0OCyG/cvWUvb5fLw/AVFK/IO2bZhJiX63JlT/17BRqfais0HUXfQpmYDKkCI7yJj0GopUs2eBYcspYK9b9ksdSuFWufC7vqUU489slyOdvTWJVM2mWWLOV4pBgxZ7RsiqVdK0pl/Zq+zfWUPo0pX7yWkc920SX1WLWmUH7947L2an8FfLM03L5p82yegoAbk=:Sb0upqbtI/9+tEUx5+skBA==",
+                meta: "Vol. 8"
+            },
+            
+        ]
+    },
+    "stray-dogs": {
+        title: "Stray Dogs #1-2",
+        description: "Choose a file below to start your download.",
+        files: [
+            {
+                name: "Stray Dogs #1",
+                file: "https://getcomics.org/dls/6fAfa8rMibahnvGLJmL+MhomMYIQTdqKKWQ+maVxX5TTHGZqYBmxHQaVEshuDySDLT5NnMFH0yNhMYfi7JZyL27gADytWR7V95Jp5NwdiDVhXcl0SvtBP22u3hdQ6PiB+/fYygazYBiFDvPnslbmNlKxyeGjpzvTSYBjCvMkrSDAjINaAEaHoI0ORBrnW12XYEUig6zefShO16g+Qen/KA==:pUbCyxyR5WlV34q1HVZJNQ==",
+                meta: "#1"
+            },
+            {
+                name: "Stray Dogs #2",
+                file: "https://getcomics.org/dls/NgVplGuKy83MwBNTGvcNikHEV8UjZPpgDdRJxaP2vEJq2MHnTxgwWJJ5HcWvBJaVG76V0/yOQD4/IuioVLifizZk1IRPNjuGRUrY3ncAMvMoj8PtuKxT8HwbmjtYWxZyv0/+5ST6Q4GGmVJ4Gn2uqP+kw4BUDLCNlG7AOvOMM/Pv2aEkMGVQdUpvKJ+et69cljaoWF7ACCP3Lryok9+aGQ==:8HqCC+xvZoWrpp8k2TkeKw==",
+                meta: "#2"
+            }
+        ]
     }
 };
 
