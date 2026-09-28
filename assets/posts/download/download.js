@@ -28,22 +28,22 @@ const DOWNLOADS = {
             {
                 name: "Lola XOXO V1",
                 file: "Lola-XOXO-v1(2014-2015) .zip",
-                meta: "Download"
+                meta: "Volume 1"
             },
             {
                 name: "Lola XOXO Wasteland Madam",
                 file: "Lola-XOXO-Wasteland-Madam(2015-2016).zip",
-                meta: "Download"
+                meta: "four-issue series"
             },
             {
                 name: "Lola XOXO V2",
                 file: "Lola-XOXO-v2(2017).zip",
-                meta: "Download"
+                meta: "Volume 2"
             },
             {
                 name: "Lola XOXO V3",
                 file: "Lola-XOXO-v3(2019-2020).zip",
-                meta: "Download"
+                meta: "Volume 3"
             }
         ]
     },
@@ -54,7 +54,7 @@ const DOWNLOADS = {
             {
                 name: "Azimuth V1",
                 file: "https://github.com/Haymawon/DoYouEvenGif-alt/releases/download/comic/Azimuth-Vol-1.2026.cbz",
-                meta: "Download"
+                meta: "Volume 1"
             }
         ]
     },
@@ -65,27 +65,27 @@ const DOWNLOADS = {
             {
                 name: "Fairest V1",
                 file: "Fairest-v01-Wide-Awake(2012).cbr",
-                meta: "Download"
+                meta: "Volume 1"
             },
             {
                 name: "Fairest V2",
                 file: "Fairest-v02-The-Hidden-Kingdom(2013).cbr",
-                meta: "Download"
+                meta: "Volume 2"
             },
             {
                 name: "Fairest V3",
                 file: "Fairest-v03-The-Return-of-the-Maharaja-(2014).cbr",
-                meta: "Download"
+                meta: "Volume 3"
             },
             {
                 name: "Fairest V4",
                 file: "Fairest-v04-Of-Men-and-Mice(2014).cbr",
-                meta: "Download"
+                meta: "Volume 4"
             },
             {
                 name: "Fairest V5",
                 file: "Fairest-v05-The-Clamour-for-Glamour-(2015).cbr",
-                meta: "Download"
+                meta: "Volume 5"
             }
         ]
     }
