@@ -88,6 +88,17 @@ const DOWNLOADS = {
                 meta: "Volume 5"
             }
         ]
+    },
+    "Ofiusa": {
+        title: "Ofiusa #1",
+        description: "Choose a file below to start your download.",
+        files: [
+            {
+                name: "Ofiusa #1",
+                file: "https://getcomics.org/dls/927xEZBLRjt/xG+lhDUGgWGEaiRIKQtA0wLBRI1gwRaBprpCVrRhDy48nd1Vb/GdHlzFxXUZcLxVZKv+hlErdxEYRoSyKokIoBKz5zpJpDmIyLjukWbHacGw50Gzo7kqCBWxN7ADl91AO6FaJ55Uqg==:MiRUoacMjeFtmcHwmOtAnQ==",
+                meta: "#1"
+            }
+        ]
     }
 };
 
