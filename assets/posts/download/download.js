@@ -53,7 +53,7 @@ const DOWNLOADS = {
         files: [
             {
                 name: "Azimuth V1",
-                file: "https://github.com/Haymawon/DoYouEvenGif-alt/releases/download/comic/Azimuth-Vol-1(2026).cbz",
+                file: "https://github.com/Haymawon/DoYouEvenGif-alt/releases/download/comic/Azimuth-Vol-1.2026.cbz",
                 meta: "Download"
             }
         ]
