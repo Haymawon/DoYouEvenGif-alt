@@ -89,7 +89,7 @@ const DOWNLOADS = {
             }
         ]
     },
-    "Ofiusa": {
+    "ofiusa": {
         title: "Ofiusa #1",
         description: "Choose a file below to start your download.",
         files: [
