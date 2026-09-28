@@ -1,0 +1,340 @@
+* {
+    box-sizing: border-box;
+}
+
+:root {
+    color-scheme: dark;
+    --bg: hsl(270, 70%, 16%);
+    --panel: rgba(255, 255, 255, 0.08);
+    --panel-border: rgba(255, 255, 255, 0.16);
+    --text: #f5f5f7;
+    --muted: #c5b8ce;
+    --accent: hsl(330, 100%, 68%);
+    --accent-text: #160812;
+}
+
+html {
+    min-height: 100%;
+}
+
+body {
+    min-height: 100vh;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    display: flex;
+    flex-direction: column;
+}
+
+.page-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+        radial-gradient(circle at 15% 10%, rgba(255, 120, 210, 0.16), transparent 30%),
+        radial-gradient(circle at 85% 25%, rgba(170, 100, 255, 0.18), transparent 32%),
+        radial-gradient(circle at 70% 90%, rgba(255, 80, 180, 0.10), transparent 35%),
+        hsl(270, 70%, 16%);
+    pointer-events: none;
+}
+
+.site-header {
+    width: min(1100px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 24px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.brand {
+    color: var(--text);
+    text-decoration: none;
+    font-weight: 750;
+    letter-spacing: -0.03em;
+}
+
+.back-link {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.92rem;
+    transition: color 0.2s ease;
+}
+
+.back-link:hover {
+    color: var(--text);
+}
+
+.download-page {
+    width: min(760px, calc(100% - 32px));
+    margin: auto;
+    padding: 56px 0 80px;
+}
+
+.download-card {
+    position: relative;
+    overflow: hidden;
+    padding: clamp(28px, 6vw, 56px);
+
+    border: 1px solid var(--panel-border);
+    border-radius: 28px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.13),
+            rgba(255, 255, 255, 0.045)
+        );
+
+    box-shadow:
+        0 30px 80px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+}
+
+.download-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+
+    background:
+        radial-gradient(
+            circle at 10% 0%,
+            rgba(255, 255, 255, 0.16),
+            transparent 30%
+        ),
+        linear-gradient(
+            120deg,
+            rgba(255, 130, 220, 0.05),
+            transparent 45%
+        );
+}
+
+.download-card > * {
+    position: relative;
+    z-index: 1;
+}
+
+.eyebrow {
+    margin-bottom: 12px;
+    color: #e4d6e9;
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+}
+
+h1 {
+    margin: 0;
+    font-size: clamp(2rem, 6vw, 3.4rem);
+    line-height: 1;
+    letter-spacing: -0.05em;
+}
+
+#downloadDescription {
+    margin: 16px 0 30px;
+    color: var(--muted);
+    line-height: 1.65;
+}
+
+.download-list {
+    display: grid;
+    gap: 12px;
+}
+
+.file-item {
+    position: relative;
+    overflow: hidden;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+
+    padding: 18px;
+
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 18px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.095),
+            rgba(255, 255, 255, 0.035)
+        );
+
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 -1px 0 rgba(255, 255, 255, 0.025);
+
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+
+    transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        background 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.file-item::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+
+    background:
+        radial-gradient(
+            circle at 0% 0%,
+            rgba(255, 255, 255, 0.10),
+            transparent 35%
+        );
+}
+
+.file-item > * {
+    position: relative;
+    z-index: 1;
+}
+
+.file-item:hover {
+    transform: translateY(-2px);
+
+    border-color: rgba(255, 150, 220, 0.28);
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.13),
+            rgba(255, 120, 210, 0.045)
+        );
+
+    box-shadow:
+        0 12px 30px rgba(0, 0, 0, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.file-info {
+    min-width: 0;
+}
+
+.file-name {
+    margin: 0;
+    color: var(--text);
+    font-size: 1rem;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.file-meta {
+    margin: 5px 0 0;
+    color: var(--muted);
+    font-size: 0.82rem;
+}
+
+.download-button,
+.home-button {
+    flex: 0 0 auto;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 42px;
+    padding: 0 17px;
+
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 12px;
+
+    background:
+        linear-gradient(
+            135deg,
+            hsl(330, 100%, 72%),
+            hsl(320, 90%, 62%)
+        );
+
+    color: var(--accent-text);
+    text-decoration: none;
+
+    font-size: 0.88rem;
+    font-weight: 750;
+
+    cursor: pointer;
+
+    box-shadow:
+        0 8px 22px rgba(255, 70, 180, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.35);
+
+    transition:
+        transform 0.2s ease,
+        opacity 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.download-button:hover,
+.home-button:hover {
+    transform: translateY(-1px);
+    opacity: 0.95;
+
+    box-shadow:
+        0 10px 28px rgba(255, 70, 180, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.not-found {
+    padding-top: 8px;
+}
+
+.not-found h2 {
+    margin: 0 0 8px;
+    font-size: 1.25rem;
+}
+
+.not-found p {
+    margin: 0 0 20px;
+    color: var(--muted);
+    line-height: 1.6;
+}
+
+.site-footer {
+    padding: 0 16px 28px;
+    text-align: center;
+    color: #9b8ca2;
+    font-size: 0.78rem;
+}
+
+@media (max-width: 560px) {
+    .site-header {
+        padding-top: 18px;
+    }
+
+    .download-page {
+        padding-top: 24px;
+    }
+
+    .download-card {
+        border-radius: 22px;
+    }
+
+    .file-item {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .download-button {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
+    }
+}
