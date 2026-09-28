@@ -5,17 +5,17 @@ const DOWNLOADS = {
         files: [
             {
                 name: "Ladies with Guns - Part 1",
-                file: "Ladies-with-Guns-part-1.cbr",
+                file: "https://github.com/Haymawon/DoYouEvenGif-alt/releases/download/comic/Ladies-with-Guns-part-1.cbr",
                 meta: "Part 1"
             },
             {
                 name: "Ladies with Guns - Part 2",
-                file: "Ladies-with-Guns-Part-2.cbr",
+                file: "https://github.com/Haymawon/DoYouEvenGif-alt/releases/download/comic/Ladies-with-Guns-Part-2.cbr",
                 meta: "Part 2"
             },
             {
                 name: "Ladies with Guns - Part 3",
-                file: "Ladies-with-Guns-Part-3.cbr",
+                file: "https://github.com/Haymawon/DoYouEvenGif-alt/releases/download/comic/Ladies-with-Guns-Part-3.cbr",
                 meta: "Part 3"
             }
         ]
@@ -53,7 +53,7 @@ const DOWNLOADS = {
         files: [
             {
                 name: "Azimuth V1",
-                file: "Azimuth-Vol-1(2026).cbz",
+                file: "https://github.com/Haymawon/DoYouEvenGif-alt/releases/download/comic/Azimuth-Vol-1(2026).cbz",
                 meta: "Download"
             }
         ]
@@ -92,7 +92,7 @@ const DOWNLOADS = {
 };
 
 const params = new URLSearchParams(window.location.search);
-const post = params.get("post") || params.get("title");
+const post = params.get("post");
 
 const title = document.getElementById("downloadTitle");
 const description = document.getElementById("downloadDescription");
@@ -118,11 +118,13 @@ function createFileItem(item) {
 
     const link = document.createElement("a");
     link.className = "download-button";
-    link.href = `/assets/posts/download/${encodeURIComponent(item.file)}`;
+    link.href = item.file;
     link.textContent = "Download";
-    link.setAttribute("download", "");
+    link.target = "_blank";
+    link.rel = "noopener";
 
     row.append(info, link);
+
     return row;
 }
 
