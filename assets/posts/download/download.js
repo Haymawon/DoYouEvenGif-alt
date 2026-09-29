@@ -174,6 +174,22 @@ const DOWNLOADS = {
                 meta: "#2"
             }
         ]
+    },
+     "Killadelphia": {
+        title: "Killadelphia Deluxe Edition",
+        description: "Choose a file below to start your download.",
+        files: [
+            {
+                name: "Killadelphia Deluxe Edition Book 1",
+                file: "https://getcomics.org/dls/+4oM1juFebUTi/VNWuX7itf7qsBlhictpByed9+rCSc721bXbLvorzfwjjHwoNfyuPCQjrH5/2P5CKz5QUcKjVn+doX4Y22RPGeiZG75MrF8LI1c+kVpfpH3PqtvA2CiShFIox+5sF8/Gi0jk06KdvjMw1bdAWDd8uGZ71nm61XYtVL+My+6nuzUwUNRubnVzZf9mw6hd/Amx7c94t5YOA==:FlVFQ/nvqLP5QiJHQxuBWw==",
+                meta: "Book 1"
+            },
+            {
+                name: "Killadelphia Deluxe Edition Book 2",
+                file: "https://getcomics.org/dls/m/m88Bzy0wfpsWza8ZFUawvGFKWULG8gBhDLXA5amBf3u46gSixzQFgNiNsuG8JtUdXXIGjmIJpMxJGPnN4oixv4/cb9ab/8daGl8VJ5VG0=:H0abkWUu/CO3ZG84odEEgw==",
+                meta: "Book 2"
+            }
+        ]
     }
 };
 
