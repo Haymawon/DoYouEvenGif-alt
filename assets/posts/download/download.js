@@ -175,7 +175,7 @@ const DOWNLOADS = {
             }
         ]
     },
-     "Killadelphia": {
+     "killadelphia": {
         title: "Killadelphia Deluxe Edition",
         description: "Choose a file below to start your download.",
         files: [
