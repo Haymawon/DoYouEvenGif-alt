@@ -190,6 +190,27 @@ const DOWNLOADS = {
                 meta: "Book 2"
             }
         ]
+    },
+     "customize": {
+        title: "config/ascii/wallpaper",
+        description: "Choose a file below to start your download.",
+        files: [
+            {
+                name: "config.jsonc",
+                file: "https://github.com/Haymawon/DoYouEvenGif-alt/releases/download/customize/config.jsonc",
+                meta: "Credit to bun butter jam"
+            },
+            {
+                name: "ASCII",
+                file: "https://github.com/Haymawon/DoYouEvenGif-alt/releases/download/customize/ascii.txt",
+                meta: "From emojicombos.com"
+            },
+            {
+                name: "wallpaper",
+                file: "https://github.com/Haymawon/DoYouEvenGif-alt/releases/download/customize/wallpaper.jpg",
+                meta: "Found this on pinterest"
+            }
+        ]
     }
 };
 
